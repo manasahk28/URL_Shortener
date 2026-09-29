@@ -10,6 +10,9 @@ const app = express();
 
 const INSTANCE_ID = process.env.INSTANCE_ID || `instance-${process.pid}`;
 
+// Trust reverse proxy headers (Render, Nginx) for HTTPS protocol and client IPs
+app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
