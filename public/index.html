@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed URL Shortener - Phase 2</title>
+    <meta name="description" content="Production-ready URL shortener with custom aliases, expiration, and real-time click analytics.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-card: rgba(17, 24, 39, 0.78);
+            --bg-input: rgba(15, 23, 42, 0.95);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 102, 241, 0.45);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow-glow: 0 0 35px rgba(99, 102, 241, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1.25rem;
+            background-image: 
+                radial-gradient(circle at 10% 15%, rgba(99, 102, 241, 0.14) 0%, transparent 45%),
+                radial-gradient(circle at 90% 85%, rgba(6, 182, 212, 0.12) 0%, transparent 45%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 760px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            text-align: center;
+        }
+
+        .badge-arch {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.9rem;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #a5b4fc;
+            margin-bottom: 1.2rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .badge-arch::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        h1 {
+            font-size: clamp(2.1rem, 5vw, 2.85rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            background: linear-gradient(135deg, #ffffff 35%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.6rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            padding: 2rem;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), var(--shadow-glow);
+            transition: border-color 0.25s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .field-col {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .optional-tag {
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 0.8rem;
+        }
+
+        input[type="url"], input[type="text"], select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 0.9rem 1.1rem;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .prefix-input-wrap {
+            display: flex;
+            align-items: center;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding-left: 0.85rem;
+        }
+
+        .prefix-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #64748b;
+            user-select: none;
+        }
+
+        .prefix-input-wrap input {
+            border: none;
+            background: transparent;
+            padding-left: 0.25rem;
+        }
+
+        .prefix-input-wrap:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+        }
+
+        button.btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, #4338ca 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.95rem 1.8rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+            width: 100%;
+        }
+
+        button.btn-primary:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+        }
+
+        button.btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .error-message {
+            display: none;
+            padding: 0.85rem 1.1rem;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 0.75rem;
+            color: #fca5a5;
+            font-size: 0.9rem;
+        }
+
+        .result-box {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            border-radius: 1rem;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.85rem;
+        }
+
+        .result-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pill-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .pill-custom {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .pill-exp {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .short-url-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            background: rgba(9, 13, 22, 0.7);
+            border: 1px solid var(--border);
+            padding: 0.85rem 1.1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .short-url-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.05rem;
+            color: #c7d2fe;
+            word-break: break-all;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .btn-icon {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.5rem 0.85rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .result-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            padding-top: 0.85rem;
+        }
+
+        .history-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            padding: 1.75rem;
+        }
+
+        .history-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.95rem 1.1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 0.85rem;
+            gap: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            border-color: var(--border-hover);
+        }
+
+        .history-left {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .history-short {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            color: #818cf8;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .history-short:hover {
+            text-decoration: underline;
+        }
+
+        .history-orig {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 380px;
+        }
+
+        .history-stats {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-shrink: 0;
+        }
+
+        .clicks-badge {
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.4rem;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        /* Analytics Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 1.5rem;
+        }
+
+        .modal-content {
+            background: #0f172a;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 1.25rem;
+            width: 100%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.4rem;
+        }
+
+        .modal-close:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: #a5b4fc;
+        }
+
+        .stat-lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .breakdown-section {
+            margin-bottom: 1.25rem;
+        }
+
+        .breakdown-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 0.6rem;
+        }
+
+        .device-bar {
+            display: flex;
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #1e293b;
+            margin-bottom: 0.6rem;
+        }
+
+        .bar-desktop { background: #6366f1; }
+        .bar-mobile { background: #06b6d4; }
+        .bar-tablet { background: #f59e0b; }
+
+        .device-legend {
+            display: flex;
+            gap: 1.25rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .click-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .click-timeline-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(17, 24, 39, 0.5);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="badge-arch">Phase 2 &bull; Custom Aliases &bull; Expiration &bull; Analytics</div>
+            <h1>URL Shortener</h1>
+            <p class="subtitle">Fast, resilient short link generator backed by MongoDB Atlas</p>
+        </header>
+
+        <section class="card">
+            <form id="shortenForm" class="form-group">
+                <div class="field-col">
+                    <label for="urlInput">Destination URL</label>
+                    <input 
+                        type="url" 
+                        id="urlInput" 
+                        placeholder="https://www.example.com/products/category/item?id=928374" 
+                        required 
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="options-grid">
+                    <div class="field-col">
+                        <label for="customAlias">
+                            Custom Alias
+                            <span class="optional-tag">optional</span>
+                        </label>
+                        <div class="prefix-input-wrap">
+                            <span class="prefix-label">short.ly/</span>
+                            <input 
+                                type="text" 
+                                id="customAlias" 
+                                placeholder="my-custom-name" 
+                                pattern="[a-zA-Z0-9_-]{3,30}"
+                                title="3-30 letters, numbers, hyphens, or underscores"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="field-col">
+                        <label for="expiresInDays">
+                            Link Expiration
+                            <span class="optional-tag">optional</span>
+                        </label>
+                        <select id="expiresInDays">
+                            <option value="">Never (Permanent)</option>
+                            <option value="1">1 Day</option>
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="90">90 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" id="submitBtn" class="btn-primary">
+                    <span>Shorten URL</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+            </form>
+
+            <div id="errorBox" class="error-message"></div>
+
+            <div id="resultBox" class="result-box">
+                <div class="result-header">
+                    <span class="result-title">Generated Short URL</span>
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <span id="customPill" class="pill-badge pill-custom" style="display:none;">Custom</span>
+                        <span id="expPill" class="pill-badge pill-exp" style="display:none;">Expires</span>
+                        <span id="clickCounter" class="clicks-badge">0 clicks</span>
+                    </div>
+                </div>
+                <div class="short-url-row">
+                    <span id="shortUrlText" class="short-url-text"></span>
+                    <div class="action-btns">
+                        <button id="copyBtn" class="btn-icon" title="Copy to clipboard">
+                            <span id="copyLabel">Copy</span>
+                        </button>
+                        <a id="visitLink" class="btn-icon" target="_blank" rel="noopener noreferrer">
+                            <span>Visit</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                        <button id="viewStatsBtn" class="btn-icon" title="View Detailed Analytics">
+                            <span>Stats</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="result-meta">
+                    <span id="origPreview" style="max-width: 450px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                    <span id="expDatePreview"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="history-card">
+            <div class="history-title">
+                <span>Recent Links & Real-Time Stats</span>
+                <button id="clearHistoryBtn" class="btn-icon" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Clear History</button>
+            </div>
+            <div id="historyList" class="history-list">
+                <div style="text-align:center; color:var(--text-muted); font-size:0.9rem; padding:1.5rem 0;">No short links saved in this browser session yet.</div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalCodeTitle" style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc;">Analytics</h3>
+                    <p id="modalOrigUrl" style="font-size: 0.8rem; color: var(--text-muted); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem;"></p>
+                </div>
+                <button id="modalCloseBtn" class="modal-close">&times;</button>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="stat-card">
+                    <div id="modalClicks" class="stat-val">0</div>
+                    <div class="stat-lbl">Total Clicks</div>
+                </div>
+                <div class="stat-card">
+                    <div id="modalStatus" class="stat-val" style="color: var(--success); font-size: 1.1rem;">Active</div>
+                    <div class="stat-lbl">Status</div>
+                </div>
+                <div class="stat-card">
+                    <div id="modalLastAccess" class="stat-val" style="font-size: 0.9rem; color: #e2e8f0;">Never</div>
+                    <div class="stat-lbl">Last Click</div>
+                </div>
+            </div>
+
+            <div class="breakdown-section">
+                <div class="breakdown-title">Device Breakdown</div>
+                <div class="device-bar">
+                    <div id="barDesktop" class="bar-desktop" style="width: 100%;"></div>
+                    <div id="barMobile" class="bar-mobile" style="width: 0%;"></div>
+                    <div id="barTablet" class="bar-tablet" style="width: 0%;"></div>
+                </div>
+                <div class="device-legend">
+                    <div class="legend-item"><span class="legend-dot" style="background:#6366f1;"></span> Desktop (<span id="countDesktop">0</span>)</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Mobile (<span id="countMobile">0</span>)</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Tablet (<span id="countTablet">0</span>)</div>
+                </div>
+            </div>
+
+            <div class="breakdown-section">
+                <div class="breakdown-title">Recent Clicks Timeline</div>
+                <div id="clickTimeline" class="click-timeline">
+                    <div style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:1rem;">No clicks recorded yet.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const shortenForm = document.getElementById("shortenForm");
+        const urlInput = document.getElementById("urlInput");
+        const customAlias = document.getElementById("customAlias");
+        const expiresInDays = document.getElementById("expiresInDays");
+        const submitBtn = document.getElementById("submitBtn");
+        const errorBox = document.getElementById("errorBox");
+        const resultBox = document.getElementById("resultBox");
+        const shortUrlText = document.getElementById("shortUrlText");
+        const clickCounter = document.getElementById("clickCounter");
+        const customPill = document.getElementById("customPill");
+        const expPill = document.getElementById("expPill");
+        const expDatePreview = document.getElementById("expDatePreview");
+        const copyBtn = document.getElementById("copyBtn");
+        const copyLabel = document.getElementById("copyLabel");
+        const visitLink = document.getElementById("visitLink");
+        const viewStatsBtn = document.getElementById("viewStatsBtn");
+        const origPreview = document.getElementById("origPreview");
+        const historyList = document.getElementById("historyList");
+        const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+        // Modal Elements
+        const analyticsModal = document.getElementById("analyticsModal");
+        const modalCloseBtn = document.getElementById("modalCloseBtn");
+        const modalCodeTitle = document.getElementById("modalCodeTitle");
+        const modalOrigUrl = document.getElementById("modalOrigUrl");
+        const modalClicks = document.getElementById("modalClicks");
+        const modalStatus = document.getElementById("modalStatus");
+        const modalLastAccess = document.getElementById("modalLastAccess");
+        const barDesktop = document.getElementById("barDesktop");
+        const barMobile = document.getElementById("barMobile");
+        const barTablet = document.getElementById("barTablet");
+        const countDesktop = document.getElementById("countDesktop");
+        const countMobile = document.getElementById("countMobile");
+        const countTablet = document.getElementById("countTablet");
+        const clickTimeline = document.getElementById("clickTimeline");
+
+        let activeShortCode = null;
+
+        function getHistory() {
+            try { return JSON.parse(localStorage.getItem("shortUrls") || "[]"); } catch { return []; }
+        }
+
+        function saveHistory(item) {
+            const list = getHistory().filter(x => x.shortCode !== item.shortCode);
+            list.unshift(item);
+            localStorage.setItem("shortUrls", JSON.stringify(list.slice(0, 15)));
+            renderHistory();
+        }
+
+        async function fetchAnalytics(shortCode) {
+            try {
+                const res = await fetch(`/api/urls/${shortCode}/analytics`);
+                if (res.ok) return await res.json();
+            } catch (err) {
+                console.error(err);
+            }
+            return null;
+        }
+
+        async function showAnalyticsModal(shortCode) {
+            const data = await fetchAnalytics(shortCode);
+            if (!data) return;
+
+            modalCodeTitle.textContent = `/${data.shortCode}`;
+            modalOrigUrl.textContent = data.originalUrl;
+            modalClicks.textContent = data.clicks;
+
+            if (data.isExpired) {
+                modalStatus.textContent = "Expired";
+                modalStatus.style.color = "var(--danger)";
+            } else {
+                modalStatus.textContent = "Active";
+                modalStatus.style.color = "var(--success)";
+            }
+
+            modalLastAccess.textContent = data.lastAccessedAt 
+                ? new Date(data.lastAccessedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                : "Never";
+
+            // Device stats
+            const total = data.clicks || 1;
+            const d = data.deviceBreakdown.Desktop || 0;
+            const m = data.deviceBreakdown.Mobile || 0;
+            const t = data.deviceBreakdown.Tablet || 0;
+
+            countDesktop.textContent = d;
+            countMobile.textContent = m;
+            countTablet.textContent = t;
+
+            barDesktop.style.width = `${(d / total) * 100}%`;
+            barMobile.style.width = `${(m / total) * 100}%`;
+            barTablet.style.width = `${(t / total) * 100}%`;
+
+            // Timeline
+            if (data.recentClicks && data.recentClicks.length > 0) {
+                clickTimeline.innerHTML = data.recentClicks.map(c => `
+                    <div class="click-timeline-item">
+                        <span><strong>${c.deviceType}</strong> &bull; ${c.referer || 'Direct'}</span>
+                        <span style="color:var(--text-muted);">${new Date(c.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                `).join("");
+            } else {
+                clickTimeline.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:1rem;">No clicks recorded yet.</div>';
+            }
+
+            analyticsModal.style.display = "flex";
+        }
+
+        modalCloseBtn.addEventListener("click", () => {
+            analyticsModal.style.display = "none";
+        });
+
+        window.addEventListener("click", (e) => {
+            if (e.target === analyticsModal) analyticsModal.style.display = "none";
+        });
+
+        async function renderHistory() {
+            const history = getHistory();
+            if (history.length === 0) {
+                historyList.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.9rem; padding:1.5rem 0;">No short links saved in this browser session yet.</div>';
+                return;
+            }
+
+            historyList.innerHTML = "";
+            for (const item of history) {
+                const el = document.createElement("div");
+                el.className = "history-item";
+                el.innerHTML = `
+                    <div class="history-left">
+                        <div class="history-short">
+                            <a href="${item.shortUrl}" target="_blank" style="color:inherit; text-decoration:none;">${item.shortUrl}</a>
+                            ${item.isCustom ? '<span class="pill-badge pill-custom">Custom</span>' : ''}
+                        </div>
+                        <span class="history-orig" title="${item.originalUrl}">${item.originalUrl}</span>
+                    </div>
+                    <div class="history-stats">
+                        <span class="clicks-badge" id="clicks-${item.shortCode}">${item.clicks || 0} clicks</span>
+                        <button class="btn-icon" onclick="showAnalyticsModal('${item.shortCode}')" style="padding:0.35rem 0.65rem;">Stats</button>
+                        <a href="${item.shortUrl}" target="_blank" class="btn-icon" style="padding:0.35rem 0.65rem;">Visit</a>
+                    </div>
+                `;
+                historyList.appendChild(el);
+
+                // Fetch latest clicks async
+                fetch(`/api/urls/${item.shortCode}`).then(r => r.json()).then(res => {
+                    const badge = document.getElementById(`clicks-${item.shortCode}`);
+                    if (badge && res.clicks !== undefined) {
+                        badge.textContent = `${res.clicks} clicks`;
+                        if (res.isExpired) {
+                            badge.textContent = "Expired";
+                            badge.style.borderColor = "var(--danger)";
+                            badge.style.color = "var(--danger)";
+                        }
+                    }
+                }).catch(() => {});
+            }
+        }
+
+        shortenForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            errorBox.style.display = "none";
+            submitBtn.disabled = true;
+            submitBtn.querySelector("span").textContent = "Shortening...";
+
+            const payload = {
+                url: urlInput.value.trim()
+            };
+
+            if (customAlias.value.trim()) {
+                payload.customAlias = customAlias.value.trim();
+            }
+
+            if (expiresInDays.value) {
+                payload.expiresInDays = parseInt(expiresInDays.value, 10);
+            }
+
+            try {
+                const res = await fetch("/api/urls", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to shorten URL");
+                }
+
+                activeShortCode = data.shortCode;
+                shortUrlText.textContent = data.shortUrl;
+                visitLink.href = data.shortUrl;
+                origPreview.textContent = `Target: ${data.originalUrl}`;
+                clickCounter.textContent = `${data.clicks || 0} clicks`;
+
+                customPill.style.display = data.isCustom ? "inline-flex" : "none";
+
+                if (data.expiresAt) {
+                    expPill.style.display = "inline-flex";
+                    expDatePreview.textContent = `Expires: ${new Date(data.expiresAt).toLocaleDateString()}`;
+                } else {
+                    expPill.style.display = "none";
+                    expDatePreview.textContent = "Never expires";
+                }
+
+                resultBox.style.display = "block";
+                urlInput.value = "";
+                customAlias.value = "";
+
+                saveHistory({
+                    shortCode: data.shortCode,
+                    shortUrl: data.shortUrl,
+                    originalUrl: data.originalUrl,
+                    isCustom: data.isCustom,
+                    clicks: data.clicks || 0,
+                    expiresAt: data.expiresAt
+                });
+
+            } catch (err) {
+                errorBox.textContent = err.message;
+                errorBox.style.display = "block";
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.querySelector("span").textContent = "Shorten URL";
+            }
+        });
+
+        viewStatsBtn.addEventListener("click", () => {
+            if (activeShortCode) {
+                showAnalyticsModal(activeShortCode);
+            }
+        });
+
+        copyBtn.addEventListener("click", async () => {
+            if (!shortUrlText.textContent) return;
+            try {
+                await navigator.clipboard.writeText(shortUrlText.textContent);
+                copyLabel.textContent = "Copied!";
+                setTimeout(() => { copyLabel.textContent = "Copy"; }, 2000);
+            } catch {
+                copyLabel.textContent = "Failed";
+            }
+        });
+
+        clearHistoryBtn.addEventListener("click", () => {
+            localStorage.removeItem("shortUrls");
+            renderHistory();
+        });
+
+        renderHistory();
+    </script>
+</body>
+</html>
