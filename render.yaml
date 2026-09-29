@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: distributed-url-shortener
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: BASE_URL
+        sync: false
